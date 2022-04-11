@@ -7,12 +7,16 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
+import be.ac.ulg.montefiore.run.jahmm.Hmm;
+import be.ac.ulg.montefiore.run.jahmm.ObservationVector;
+
 public class Main {
 	
 	private static final long POLLING_RATE = 2_000_000_000L;//2000ms or 2 seconds
 	
 	private static final ProcessHandle CURRENT_PROCESS = ProcessHandle.current();
 	
+	/*
 	private static final File CLUSTERS_FOLDER;
 	
 	static {
@@ -25,6 +29,7 @@ public class Main {
 			throw new InternalError("Failed to find or create cluster directory: " + e.getMessage());
 		}
 	}
+	*/
 	
 	//private static final String STOP = "stop";
 	
@@ -64,9 +69,28 @@ public class Main {
 		*/
 		//}
 		
-		Map<String, List<SampleSet>> sampleSets = loadSampleSets(new File("C:\\Users\\Connor\\Documents\\ProcessTracker\\data"));
-		System.out.println(sampleSets.size());
-		
+		Map<String, List<SampleSet>> sampleSets = SampleUtils.loadSampleSets(new File("C:\\Users\\Connor\\Documents\\ProcessTracker\\data"));
+		/*
+		//System.out.println(sampleSets.size());
+		SampleSet samples = sampleSets.get("_total").get(0);
+		for (Sample s : samples) {
+			System.out.println(SampleUtils.toCSVString(s));
+		}
+		System.out.println(SampleUtils.toCSVString(samples.meta().meanSample()));
+		//int readingsCount = samples.get(0).numReadings();
+		//for (Sample s : samples) {
+		//	double covVal = (s.get)
+		//}
+		for (double[] c : samples.meta().getCovMatrix()) {
+			StringJoiner sj = new StringJoiner("\t", "[", "]");
+			for (double d : c) {
+				sj.add(String.valueOf(d));
+			}
+			System.out.println(sj.toString());
+		}
+		*/
+		Hmm<ObservationVector> hmm = HmmUtils.generate(sampleSets);
+		System.out.println(hmm.toString());
 		System.out.println("\nExiting...");
 	}
 	
@@ -167,39 +191,6 @@ public class Main {
 		}
 		System.out.println("Attach successful! JVM: " + Objects.toString(process));
 		return  process;
-	}
-	
-	public static Map<String, List<SampleSet>> loadSampleSets(File directory) {
-		if (directory == null)
-			throw new NullPointerException();
-		if (!directory.isDirectory())
-			throw new IllegalArgumentException("Given File is not a directory: " + directory.getAbsolutePath());
-		Map<String, List<SampleSet>> sampleSets = new HashMap<>();
-		File[] files = directory.listFiles(CSVUtils.FILE_FILTER);
-		if (files != null) {
-			for (File f : files) {
-				String counterName = f.getName().replace(CSVUtils.FILE_EXTENSION, "");
-				try (BufferedReader reader = new BufferedReader(new FileReader(f))){
-					SampleSet samples = new SampleSet(counterName, SampleUtils.fromCSVStrings(reader.lines().toList()));
-					sampleSets.putIfAbsent(samples.processName(), new ArrayList<>());
-					sampleSets.get(samples.processName()).add(samples);
-				} catch(Exception e) {
-					System.err.println("Failed to parse Samples file " 
-							+ f.getAbsolutePath() + ": " + e.getLocalizedMessage());
-				}
-			}
-		}
-		File[] subdirectories = directory.listFiles(File::isDirectory);
-		if (subdirectories != null) {
-			for (File s : subdirectories) {
-				for (Map.Entry<String, List<SampleSet>> entry : loadSampleSets(s).entrySet()) {
-					sampleSets.putIfAbsent(entry.getKey(), new ArrayList<>());
-					sampleSets.get(entry.getKey()).addAll(entry.getValue());
-				}
-				
-			}
-		}
-		return sampleSets;
 	}
 	
 	/*
